@@ -128,7 +128,7 @@ class TestTrace:
 
 
 class TestAgentTracer:
-    def test_span_stack_initialized_lazily(self):
+    def test_span_stack_initialized_empty(self):
         tracer = AgentTracer()
         assert tracer._span_stack == []
 

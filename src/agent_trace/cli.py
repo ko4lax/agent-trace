@@ -58,11 +58,16 @@ def _load_traces(path: Path) -> list[dict]:
         sys.exit(1)
 
     text = path.read_text()
-    if text.strip().startswith("{"):
-        return [json.loads(text)]
+    stripped = text.strip()
+    try:
+        parsed = json.loads(stripped)
+        if isinstance(parsed, dict):
+            return [parsed]
+    except json.JSONDecodeError:
+        pass
 
     traces: list[dict] = []
-    for line in text.strip().splitlines():
+    for line in stripped.splitlines():
         line = line.strip()
         if line:
             traces.append(json.loads(line))

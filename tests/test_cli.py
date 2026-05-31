@@ -11,12 +11,13 @@ from agent_trace import cli
 
 
 def _trace_payload(trace_id: str, status: str = "success") -> dict:
+    error_count = 1 if status == "error" else 0
     return {
         "trace_id": trace_id,
         "name": f"trace-{trace_id}",
         "status": status,
         "duration_ms": 120,
-        "summary": {"total_spans": 1, "total_tool_calls": 1, "total_errors": 1 if status == "error" else 0},
+        "summary": {"total_spans": 1, "total_tool_calls": 1, "total_errors": error_count},
         "spans": [
             {
                 "tool_calls": [
@@ -115,3 +116,34 @@ def test_main_dispatches_to_stats(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     cli.main()
 
     assert called == [[payload]]
+
+
+@pytest.mark.parametrize(
+    ("command", "extra_args", "target"),
+    [
+        ("list", [], "_cmd_list"),
+        ("show", ["a1"], "_cmd_show"),
+        ("errors", [], "_cmd_errors"),
+    ],
+)
+def test_main_dispatches_other_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    extra_args: list[str],
+    target: str,
+):
+    payload = _trace_payload("a1")
+    trace_file = tmp_path / "trace.json"
+    trace_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    called: list[tuple] = []
+
+    def fake_cmd(*args):
+        called.append(args)
+
+    monkeypatch.setattr(cli, target, fake_cmd)
+    monkeypatch.setattr("sys.argv", ["agent-trace", command, str(trace_file), *extra_args])
+    cli.main()
+
+    assert called
