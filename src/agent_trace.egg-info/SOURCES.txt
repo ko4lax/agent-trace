@@ -1,0 +1,14 @@
+LICENSE
+README.md
+pyproject.toml
+src/agent_trace/__init__.py
+src/agent_trace/cli.py
+src/agent_trace/exporters.py
+src/agent_trace/models.py
+src/agent_trace/tracer.py
+src/agent_trace.egg-info/PKG-INFO
+src/agent_trace.egg-info/SOURCES.txt
+src/agent_trace.egg-info/dependency_links.txt
+src/agent_trace.egg-info/entry_points.txt
+src/agent_trace.egg-info/top_level.txt
+tests/test_tracer.py

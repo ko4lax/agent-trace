@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-trace"
+version = "0.1.0"
+description = "Framework-agnostic observability for AI coding agents — trace every tool call, measure latency, track costs."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Hanif Nugraha", email = "hanifnugraha69@gmail.com"}
+]
+keywords = ["ai", "agent", "observability", "tracing", "llm", "tool-calls"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/ko4lax/agent-trace"
+Repository = "https://github.com/ko4lax/agent-trace.git"
+Issues = "https://github.com/ko4lax/agent-trace/issues"
+
+[project.scripts]
+agent-trace = "agent_trace.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

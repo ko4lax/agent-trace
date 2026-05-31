@@ -1,0 +1,2 @@
+[console_scripts]
+agent-trace = agent_trace.cli:main
