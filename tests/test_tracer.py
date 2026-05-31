@@ -128,6 +128,10 @@ class TestTrace:
 
 
 class TestAgentTracer:
+    def test_span_stack_initialized_lazily(self):
+        tracer = AgentTracer()
+        assert tracer._span_stack == []
+
     def test_full_workflow(self):
         tracer = AgentTracer()
         tracer.start_trace("test-workflow")
@@ -186,6 +190,34 @@ class TestAgentTracer:
         tracer.finish_trace()
         assert len(tracer.completed_traces) == 2
 
+    def test_nested_spans_attach_to_parent(self):
+        tracer = AgentTracer()
+        tracer.start_trace("nested")
+        with tracer.span("parent"):
+            with tracer.span("child"):
+                pass
+        trace_obj = tracer.finish_trace()
+        assert len(trace_obj.spans) == 1
+        assert trace_obj.spans[0].name == "parent"
+        assert len(trace_obj.spans[0].children) == 1
+        assert trace_obj.spans[0].children[0].name == "child"
+
+    def test_span_marks_error_on_exception(self):
+        tracer = AgentTracer()
+        tracer.start_trace("failing-span")
+        with pytest.raises(ValueError):
+            with tracer.span("explode"):
+                raise ValueError("boom")
+        trace_obj = tracer.finish_trace()
+        assert trace_obj.spans[0].status == TraceStatus.ERROR
+
+    def test_export_uses_default_exporter(self):
+        tracer = AgentTracer(exporter=JSONExporter())
+        trace_obj = Trace(name="exp")
+        trace_obj.finish()
+        output = tracer.export(trace_obj)
+        assert '"name": "exp"' in output
+
 
 class TestGlobalTracer:
     def test_singleton(self):
@@ -207,6 +239,22 @@ class TestGlobalTracer:
         finished = tracer.finish_trace()
         assert finished.name == "decorator-test"
         assert len(finished.spans) >= 1
+
+    def test_trace_decorator_error_path(self):
+        tracer = get_tracer()
+        tracer.start_trace("decorator-error")
+
+        @trace(name="boom-func")
+        def boom():
+            raise RuntimeError("nope")
+
+        with pytest.raises(RuntimeError, match="nope"):
+            boom()
+
+        finished = tracer.finish_trace()
+        tool = finished.spans[0].tool_calls[0]
+        assert tool.status == TraceStatus.ERROR
+        assert tool.error_message == "nope"
 
 
 class TestExporters:
@@ -247,3 +295,40 @@ class TestExporters:
         assert "Trace: console-test" in output
         assert "tool:search" in output
         assert "done" in output
+
+    def test_console_exporter_model_tokens_and_error(self):
+        trace = Trace(name="console-model", model="gpt", provider="openai")
+        trace.total_tokens = 1234
+        trace.estimated_cost_usd = 0.0042
+        tc = ToolCall(name="search")
+        tc.finish(status=TraceStatus.ERROR, error_message="failed")
+        span = Span(name="step1")
+        span.add_tool_call(tc)
+        span.finish(status=TraceStatus.ERROR)
+        trace.add_span(span)
+        trace.finish(status=TraceStatus.ERROR)
+
+        output = ConsoleExporter(use_color=False).export(trace)
+        assert "Model: openai/gpt" in output
+        assert "Tokens: 1,234  $0.0042" in output
+        assert "error: failed" in output
+
+    def test_console_exporter_colors_when_tty(self, monkeypatch):
+        trace = Trace(name="tty")
+        trace.finish()
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+        output = ConsoleExporter(use_color=True).export(trace)
+        assert output.startswith("\033")
+
+
+class TestSummarize:
+    def test_summarize_none(self):
+        from agent_trace.tracer import _summarize
+
+        assert _summarize(None) is None
+
+    def test_summarize_truncates_long_text(self):
+        from agent_trace.tracer import _summarize
+
+        result = _summarize("x" * 250, max_len=10)
+        assert result == "xxxxxxxxxx..."
